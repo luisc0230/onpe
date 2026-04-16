@@ -90,13 +90,12 @@ function renderHtml({ timestamp, actasPercent, triggered, topCandidates }) {
 }
 
 /**
- * Resolves which subscribers should receive an email and what candidates to show them.
- * Returns an array of { email, candidates } where candidates are the triggered ones they follow.
- * - If a subscriber has explicit preferences, only matching DNIs are included.
- * - If a subscriber has a NULL preference (default), include TOP 5 triggered candidates.
+ * Resolves which subscribers should receive an email and groups them by identical preferences.
+ * Returns a Map where key = candidateDNIs signature, value = { emails: [], candidates: [] }.
+ * This allows sending one BCC email per preference group instead of individual emails.
  */
 async function resolveRecipients({ triggered, allCandidatesSorted }) {
-  if (!triggered.length) return [];
+  if (!triggered.length) return new Map();
 
   const triggeredDnis = new Set(triggered.map((c) => c.dni));
   const triggeredByDni = Object.fromEntries(triggered.map((c) => [c.dni, c]));
@@ -106,7 +105,9 @@ async function resolveRecipients({ triggered, allCandidatesSorted }) {
     include: [{ model: Preference, as: 'preferences' }],
   });
 
-  const recipients = [];
+  // Group users by their relevant triggered candidates
+  const groups = new Map();
+
   for (const s of subs) {
     const prefs = s.preferences || [];
     const hasDefault = prefs.length === 0 || prefs.some((p) => p.candidate_dni == null);
@@ -127,48 +128,75 @@ async function resolveRecipients({ triggered, allCandidatesSorted }) {
     }
 
     if (relevantCandidates.length > 0) {
-      recipients.push({ email: s.email, candidates: relevantCandidates });
+      // Create a signature from DNIs to group users with identical preferences
+      const signature = relevantCandidates.map((c) => c.dni).sort().join(',');
+      if (!groups.has(signature)) {
+        groups.set(signature, { emails: [], candidates: relevantCandidates });
+      }
+      groups.get(signature).emails.push(s.email);
     }
   }
 
-  return recipients;
+  return groups;
 }
 
 async function sendBatchedAlert({ timestamp, actasPercent, triggered, allCandidatesSorted }) {
-  const recipients = await resolveRecipients({ triggered, allCandidatesSorted });
-  if (!recipients.length) {
+  const groups = await resolveRecipients({ triggered, allCandidatesSorted });
+  if (groups.size === 0) {
     console.log('[MAIL] No recipients matched triggered candidates. Skipping.');
     return { chunks: 0, total: 0 };
   }
 
+  // Flatten groups into chunks of max 99 emails per BCC (SMTP limit)
+  const emailTasks = [];
+  for (const { emails, candidates } of groups.values()) {
+    const html = renderHtml({
+      timestamp,
+      actasPercent,
+      triggered: candidates, // Personalized per preference group
+      topCandidates: allCandidatesSorted,
+    });
+
+    // Split emails into chunks of 99 (BCC limit)
+    const chunks = chunk(emails, 99);
+    for (const bcc of chunks) {
+      emailTasks.push({ bcc, html });
+    }
+  }
+
+  const totalRecipients = [...groups.values()].reduce((sum, g) => sum + g.emails.length, 0);
+
   if (env.smtp.dryRun) {
     console.log(
-      `[MAIL][DRY_RUN] Would send ${recipients.length} personalized email(s).`
+      `[MAIL][DRY_RUN] Would send ${emailTasks.length} BCC email(s) to ${totalRecipients} recipient(s) across ${groups.size} preference group(s).`
     );
-    return { chunks: recipients.length, total: recipients.length, dryRun: true };
+    return { chunks: emailTasks.length, total: totalRecipients, groups: groups.size, dryRun: true };
   }
 
   const t = getTransporter();
   const from = `"${env.smtp.fromName}" <${env.smtp.user}>`;
   const subject = 'Elecciones 2026 · Actualización de votos';
 
-  // Send personalized emails (each user sees only their tracked candidates)
+  // Send emails in batches (queued if > 99 per group)
   const results = await Promise.allSettled(
-    recipients.map(({ email, candidates }) => {
-      const html = renderHtml({
-        timestamp,
-        actasPercent,
-        triggered: candidates, // Only show candidates this user follows
-        topCandidates: allCandidatesSorted,
-      });
-      return t.sendMail({ from, to: email, subject, html });
-    })
+    emailTasks.map(({ bcc, html }) =>
+      t.sendMail({ from, to: env.smtp.user, bcc, subject, html })
+    )
   );
 
   const failed = results.filter((r) => r.status === 'rejected');
-  if (failed.length) console.error(`[MAIL] ${failed.length} email(s) failed`, failed);
+  if (failed.length) console.error(`[MAIL] ${failed.length} chunk(s) failed`, failed);
 
-  return { chunks: recipients.length, total: recipients.length, failed: failed.length };
+  console.log(
+    `[MAIL] Sent ${emailTasks.length} BCC email(s) to ${totalRecipients} recipient(s) across ${groups.size} preference group(s). Failed: ${failed.length}`
+  );
+
+  return {
+    chunks: emailTasks.length,
+    total: totalRecipients,
+    groups: groups.size,
+    failed: failed.length,
+  };
 }
 
 async function verifyTransport() {
