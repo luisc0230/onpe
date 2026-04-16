@@ -6,7 +6,36 @@ const baseURL = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api`
   : '/api';
 
-const api = axios.create({ baseURL, timeout: 20000 });
+const api = axios.create({ baseURL, timeout: 45000 });
+
+/**
+ * Retry interceptor — handles Render Free cold-starts. When the backend is
+ * asleep, the first request gets a 404/502/503 with no CORS headers while the
+ * container spins up (~30 s). We silently retry up to 3 times with exponential
+ * backoff so the user sees a single "loading" state instead of an error flash.
+ */
+const RETRY_STATUS = new Set([0, 404, 502, 503, 504]);
+const MAX_RETRIES = 3;
+
+api.interceptors.response.use(undefined, async (error) => {
+  const config = error.config || {};
+  const status = error.response?.status ?? 0;
+  const isNetwork = !error.response; // CORS/network failures land here
+  const retriable = isNetwork || RETRY_STATUS.has(status);
+
+  config.__retryCount = config.__retryCount || 0;
+  if (!retriable || config.__retryCount >= MAX_RETRIES) {
+    return Promise.reject(error);
+  }
+
+  config.__retryCount += 1;
+  const delayMs = 1500 * 2 ** (config.__retryCount - 1); // 1.5s, 3s, 6s
+  console.warn(
+    `[api] retry ${config.__retryCount}/${MAX_RETRIES} after ${delayMs}ms (${config.url})`
+  );
+  await new Promise((r) => setTimeout(r, delayMs));
+  return api(config);
+});
 
 export const getSnapshot = () => api.get('/election/snapshot').then((r) => r.data);
 export const refreshSnapshot = () => api.post('/election/refresh').then((r) => r.data);
