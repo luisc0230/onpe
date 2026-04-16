@@ -69,13 +69,15 @@ async function runPollCycle() {
 
   // Append-only timeseries. De-duplicated by ONPE's upstream timestamp so repeated
   // polls that hit the same cached payload don't bloat the history.
+  // OPTIMIZATION: Only store TOP 5 candidates to reduce DB size (every 15min = 5 rows instead of 33).
   if (sorted.length && totales.timestampMs) {
     const existing = await CandidateSnapshot.count({
       where: { upstream_ts_ms: String(totales.timestampMs) },
     });
     if (existing === 0) {
+      const top5 = sorted.slice(0, 5); // Only store Top 5
       await CandidateSnapshot.bulkCreate(
-        sorted.map((c) => ({
+        top5.map((c) => ({
           dni: c.dni,
           name: c.name,
           party: c.party,
@@ -88,7 +90,7 @@ async function runPollCycle() {
           captured_at: new Date(),
         }))
       );
-      console.log(`[POLL] Snapshot stored (${sorted.length} rows) @ ${totales.timestampMs}`);
+      console.log(`[POLL] Snapshot stored (TOP ${top5.length} only) @ ${totales.timestampMs}`);
     }
   }
 

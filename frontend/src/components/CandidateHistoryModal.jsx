@@ -88,7 +88,17 @@ export default function CandidateHistoryModal({ open, onClose, candidate }) {
                 </div>
               )}
 
-              {!loading && !error && (
+              {!loading && !error && series.length === 0 && (
+                <div className="rounded-xl ring-1 ring-slate-200 bg-slate-50 p-6 text-center">
+                  <div className="text-4xl mb-3">📊</div>
+                  <p className="font-semibold text-slate-700 mb-1">Historial no disponible</p>
+                  <p className="text-sm text-slate-500">
+                    Solo guardamos el historial de los <strong>Top 5</strong> candidatos para optimizar el almacenamiento.
+                  </p>
+                </div>
+              )}
+
+              {!loading && !error && series.length > 0 && (
                 <>
                   {/* Metric toggle */}
                   <div className="inline-flex rounded-xl ring-1 ring-slate-200 bg-slate-50 p-1 text-xs font-semibold">
