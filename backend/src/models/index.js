@@ -8,7 +8,8 @@ const Preference = require('./Preference');
 
 async function initModels() {
   await sequelize.authenticate();
-  await sequelize.sync();
+  // sync without alter — tables already exist in MySQL
+  await sequelize.sync({ alter: false });
 }
 
 module.exports = {

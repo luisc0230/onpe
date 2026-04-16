@@ -15,7 +15,7 @@ const CandidateHistory = sequelize.define(
     previous_votes: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     current_percent: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
     trend: {
-      type: DataTypes.ENUM('UP', 'DOWN', 'EQUAL'),
+      type: DataTypes.STRING(20),
       allowNull: false,
       defaultValue: 'EQUAL',
     },

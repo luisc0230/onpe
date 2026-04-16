@@ -17,7 +17,13 @@ const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   corsOrigin: process.env.CORS_ORIGIN || '*',
 
-  databaseUrl: process.env.DATABASE_URL || '',
+  db: {
+    host: process.env.DB_HOST || '161.132.4.191',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    name: process.env.DB_NAME || 'onpe',
+    port: int(process.env.DB_PORT, 3306),
+  },
 
   onpe: {
     base: process.env.ONPE_BASE || 'https://resultadoelectoral.onpe.gob.pe/presentacion-backend',
