@@ -51,10 +51,22 @@ router.post('/subscribe', subscribeLimiter, async (req, res) => {
     }
 
     await t.commit();
+
+    // Enrich response with candidate names so the UI can show them immediately.
+    const snap = getLastSnapshot();
+    const byDni = Object.fromEntries((snap.candidates || []).map((c) => [c.dni, c]));
+    const trackingList =
+      dnis.length > 0
+        ? dnis.map((dni) => ({ dni, name: byDni[dni]?.name || dni, party: byDni[dni]?.party || '—' }))
+        : (snap.candidates || [])
+            .slice(0, 5)
+            .map((c) => ({ dni: c.dni, name: c.name, party: c.party }));
+
     res.json({
       ok: true,
       subscriber: { id: sub.id, email: sub.email },
-      tracking: dnis.length ? dnis : 'TOP_5_DEFAULT',
+      tracking: trackingList,
+      mode: dnis.length > 0 ? 'CUSTOM' : 'TOP_5_DEFAULT',
     });
   } catch (err) {
     await t.rollback();

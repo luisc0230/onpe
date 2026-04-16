@@ -44,8 +44,9 @@ export default function SubscriptionModal({ open, onClose, candidates }) {
     try {
       const dnis = useDefault ? [] : Array.from(selected);
       const res = await subscribe(email.trim(), dnis);
-      // Fire-and-forget confirmation email so the user sees their inbox light up.
-      // Rate-limited server-side (max 3 per 10min per IP) so we don't abuse.
+      // Wait for DB commit, then send confirmation email with fresh preferences.
+      // Small delay ensures the transaction is fully committed before reading.
+      await new Promise((r) => setTimeout(r, 300));
       sendTestEmail(email.trim())
         .then(() => setResult({ ...res, emailSent: true }))
         .catch(() => setResult({ ...res, emailSent: false }));
@@ -105,14 +106,26 @@ export default function SubscriptionModal({ open, onClose, candidates }) {
                 </p>
                 <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-3 text-left">
                   <div className="text-[11px] font-bold tracking-wider text-slate-500 mb-1">
-                    SIGUIENDO
+                    {result.mode === 'CUSTOM' ? 'CANDIDATOS SELECCIONADOS' : 'TOP 5 AUTOMÁTICO'}
                   </div>
-                  <div className="text-sm">
-                    {Array.isArray(result.tracking)
-                      ? `${result.tracking.length} candidato${result.tracking.length === 1 ? '' : 's'} seleccionado${result.tracking.length === 1 ? '' : 's'}`
-                      : 'Top 5 automático (los 5 más votados en cada actualización)'}
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-2">
+                  {Array.isArray(result.tracking) && result.tracking.length > 0 ? (
+                    <ul className="space-y-1 text-xs">
+                      {result.tracking.map((c, i) => (
+                        <li key={c.dni || i} className="flex items-start gap-1.5">
+                          <span className="text-slate-400 shrink-0">{i + 1}.</span>
+                          <div className="min-w-0">
+                            <div className="font-semibold truncate">{c.name}</div>
+                            <div className="text-[10px] text-slate-500 truncate">{c.party}</div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-sm">
+                      Top 5 automático (los 5 más votados en cada actualización)
+                    </div>
+                  )}
+                  <div className="text-[11px] text-slate-500 mt-2 pt-2 border-t border-slate-200">
                     Recibirás correos <strong>solo cuando cambien los votos</strong> entre dos
                     actualizaciones. No hay spam.
                   </div>
