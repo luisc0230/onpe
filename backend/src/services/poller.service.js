@@ -67,31 +67,28 @@ async function runPollCycle() {
 
   const { triggered } = await applyDiff(sorted);
 
-  // Append-only timeseries. De-duplicated by ONPE's upstream timestamp so repeated
-  // polls that hit the same cached payload don't bloat the history.
-  // OPTIMIZATION: Only store TOP 5 candidates to reduce DB size (every 15min = 5 rows instead of 33).
-  if (sorted.length && totales.timestampMs) {
-    const existing = await CandidateSnapshot.count({
-      where: { upstream_ts_ms: String(totales.timestampMs) },
-    });
-    if (existing === 0) {
-      const top5 = sorted.slice(0, 5); // Only store Top 5
-      await CandidateSnapshot.bulkCreate(
-        top5.map((c) => ({
-          dni: c.dni,
-          name: c.name,
-          party: c.party,
-          party_code: c.partyCode,
-          votes: c.totalVotosValidos,
-          percent_valid: c.porcentajeVotosValidos,
-          percent_emitted: c.porcentajeVotosEmitidos,
-          actas_percent: totales.actasPercent,
-          upstream_ts_ms: totales.timestampMs,
-          captured_at: new Date(),
-        }))
-      );
-      console.log(`[POLL] Snapshot stored (TOP ${top5.length} only) @ ${totales.timestampMs}`);
-    }
+  // Append-only timeseries. Only store if there are REAL changes (triggered candidates).
+  // This prevents saving duplicate snapshots when ONPE updates timestamp but votes don't change.
+  // OPTIMIZATION: Only store TOP 5 candidates to reduce DB size.
+  if (sorted.length && totales.timestampMs && triggered.length > 0) {
+    const top5 = sorted.slice(0, 5); // Only store Top 5
+    await CandidateSnapshot.bulkCreate(
+      top5.map((c) => ({
+        dni: c.dni,
+        name: c.name,
+        party: c.party,
+        party_code: c.partyCode,
+        votes: c.totalVotosValidos,
+        percent_valid: c.porcentajeVotosValidos,
+        percent_emitted: c.porcentajeVotosEmitidos,
+        actas_percent: totales.actasPercent,
+        upstream_ts_ms: totales.timestampMs,
+        captured_at: new Date(),
+      }))
+    );
+    console.log(`[POLL] Snapshot stored (TOP ${top5.length}, ${triggered.length} changed) @ ${totales.timestampMs}`);
+  } else if (sorted.length && totales.timestampMs) {
+    console.log(`[POLL] No changes detected, skipping snapshot @ ${totales.timestampMs}`);
   }
 
   // Attach last 3 cycles of history to each candidate for inline mini-trend UI.
