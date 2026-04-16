@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import CandidateImage from './CandidateImage';
-import TrendBadge from './TrendBadge';
+import MiniTrend from './MiniTrend';
 import { fmtInt, fmtPct } from '../lib/format';
 
 const RANK_META = {
@@ -86,8 +86,8 @@ function MobilePodiumCard({ rank, candidate, onSelect }) {
         <div className="text-[10px] text-slate-500 tabular-nums">
           {fmtInt(candidate.totalVotosValidos)}
         </div>
-        <div className="mt-1">
-          <TrendBadge trend={candidate.trend} />
+        <div className="mt-1 flex justify-end">
+          <MiniTrend history={candidate.recentHistory} metric="votes" />
         </div>
       </div>
     </motion.button>
@@ -148,7 +148,7 @@ function DesktopStep({ rank, candidate, onSelect }) {
           {fmtInt(candidate.totalVotosValidos)} votos
         </div>
         <div className="mt-2">
-          <TrendBadge trend={candidate.trend} />
+          <MiniTrend history={candidate.recentHistory} metric="votes" size="lg" />
         </div>
       </div>
     </motion.button>
@@ -195,6 +195,9 @@ function RunnerUpRow({ candidate, rank, onSelect }) {
         </div>
         <div className="text-[10px] text-slate-500 tabular-nums">
           {fmtInt(candidate.totalVotosValidos)}
+        </div>
+        <div className="mt-1 flex justify-end">
+          <MiniTrend history={candidate.recentHistory} metric="votes" />
         </div>
       </div>
     </motion.li>
