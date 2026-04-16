@@ -15,7 +15,7 @@ export default function Header({ timestamp, actasPercentage, onOpenSubscribe }) 
           />
           <div>
             <h1 className="text-sm sm:text-base font-bold leading-tight">
-              ONPE 2026 · Monitor en Vivo
+              Elecciones 2026 · Monitor en Vivo
             </h1>
             <p className="text-[11px] sm:text-xs text-slate-500 leading-tight">
               {timestamp || 'Esperando actualización…'}

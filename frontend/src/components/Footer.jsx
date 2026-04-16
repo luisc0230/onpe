@@ -27,18 +27,8 @@ export default function Footer() {
         </a>
 
         <div className="text-center sm:text-right text-[11px] text-slate-500 max-w-sm">
-          <div>
-            Datos oficiales:{' '}
-            <a
-              href="https://resultadoelectoral.onpe.gob.pe/main/resumen"
-              target="_blank"
-              rel="noreferrer"
-              className="underline hover:text-slate-700"
-            >
-              resultadoelectoral.onpe.gob.pe
-            </a>
-          </div>
-          <div>Este proyecto no está afiliado a la ONPE.</div>
+          <div>Monitor de resultados electorales en tiempo real.</div>
+          <div>Datos públicos oficiales. Proyecto independiente, sin afiliación institucional.</div>
           <div className="mt-1 text-slate-400">© {year} LDX Software · Todos los derechos reservados</div>
         </div>
       </div>

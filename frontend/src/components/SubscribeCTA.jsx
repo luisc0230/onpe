@@ -33,7 +33,7 @@ export default function SubscribeCTA({ onOpen, candidateCount = 0 }) {
 
           <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-white/90">
             <li className="flex items-center gap-2">
-              <span>✅</span> Datos oficiales ONPE
+              <span>✅</span> Datos oficiales
             </li>
             <li className="flex items-center gap-2">
               <span>⚡</span> Auto-refresh cada 2 min

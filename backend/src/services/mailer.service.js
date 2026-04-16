@@ -58,7 +58,7 @@ function renderHtml({ timestamp, actasPercent, triggered, topCandidates }) {
 
   return `
   <div style="font-family:Inter,Arial,sans-serif;max-width:640px;margin:0 auto;color:#111;">
-    <h2 style="margin:0 0 6px;">ONPE 2026 · Actualización</h2>
+    <h2 style="margin:0 0 6px;">Elecciones 2026 · Actualización</h2>
     <p style="color:#555;margin:0 0 16px;">
       ${timestamp || 'Actualización en vivo'} ·
       Actas contabilizadas: <strong>${actasPercent != null ? actasPercent.toFixed(4) + '%' : '—'}</strong>
@@ -79,7 +79,7 @@ function renderHtml({ timestamp, actasPercent, triggered, topCandidates }) {
         : ''
     }
     <p style="color:#888;font-size:12px;margin-top:24px;">
-      Recibes este correo porque estás suscrito al Monitor ONPE 2026.
+      Recibes este correo porque estás suscrito al Monitor Elecciones 2026.
     </p>
     <hr style="border:none;border-top:1px solid #eee;margin:18px 0;"/>
     <p style="color:#999;font-size:11px;text-align:center;margin:0;">
@@ -145,7 +145,7 @@ async function sendBatchedAlert({ timestamp, actasPercent, triggered, allCandida
 
   const t = getTransporter();
   const from = `"${env.smtp.fromName}" <${env.smtp.user}>`;
-  const subject = 'ONPE Update 2026';
+  const subject = 'Elecciones 2026 · Actualización de votos';
 
   const results = await Promise.allSettled(
     chunks.map((bcc) =>

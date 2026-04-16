@@ -36,7 +36,7 @@ const env = {
     secure: bool(process.env.SMTP_SECURE, true),
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_APP_PASSWORD || '',
-    fromName: process.env.MAIL_FROM_NAME || 'ONPE 2026 Monitor',
+    fromName: process.env.MAIL_FROM_NAME || 'LDX Software · Elecciones 2026',
     bccChunk: int(process.env.MAIL_BCC_CHUNK, 99),
     dryRun: bool(process.env.MAIL_DRY_RUN, true),
   },
