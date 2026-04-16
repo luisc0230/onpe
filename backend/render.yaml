@@ -1,0 +1,41 @@
+# Render.com blueprint (optional). You can also configure manually via the dashboard.
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: onpe-2026-backend
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install
+    startCommand: node src/server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CORS_ORIGIN
+        sync: false # set to your Vercel URL, e.g. https://elecciones-peru.vercel.app
+      - key: DATABASE_URL
+        sync: false # Neon connection string
+      - key: SMTP_HOST
+        value: smtp.zoho.com
+      - key: SMTP_PORT
+        value: 465
+      - key: SMTP_SECURE
+        value: true
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_APP_PASSWORD
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: LDX Software - ONPE 2026 Monitor
+      - key: MAIL_BCC_CHUNK
+        value: 99
+      - key: MAIL_DRY_RUN
+        value: false
+      - key: POLL_CRON
+        value: "*/5 * * * *"
+      - key: POLL_ON_BOOT
+        value: true
