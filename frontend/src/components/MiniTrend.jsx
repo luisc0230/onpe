@@ -16,6 +16,17 @@ export default function MiniTrend({ history = [], metric = 'votes', size = 'sm' 
   const vals = history.map((h) => Number(h[metric] ?? 0));
   const last = vals[vals.length - 1];
   const first = vals[0];
+
+  // If only 1 data point (not in Top 5), show current value without trend
+  if (vals.length === 1) {
+    const fmt = (n) => (metric === 'votes' ? fmtInt(n) : `${n.toFixed(2)}%`);
+    return (
+      <span className="inline-flex items-center gap-1 text-slate-600 text-[10px] font-semibold tabular-nums">
+        {fmt(last)}
+      </span>
+    );
+  }
+
   // Single source of truth: delta across the full visible window (first → last).
   // This keeps the arrow, color, line direction and the numeric label consistent.
   const delta = last - first;

@@ -95,11 +95,24 @@ async function runPollCycle() {
   }
 
   // Attach last 3 cycles of history to each candidate for inline mini-trend UI.
+  // Only Top 5 have DB history, but all candidates get at least current snapshot.
   const historyByDni = await loadRecentHistoryByDni(3);
-  const candidatesWithHistory = sorted.map((c) => ({
-    ...c,
-    recentHistory: historyByDni[c.dni] || [],
-  }));
+  const candidatesWithHistory = sorted.map((c) => {
+    const dbHistory = historyByDni[c.dni] || [];
+    // If no DB history (not in Top 5), create a single-point history from current data
+    const recentHistory =
+      dbHistory.length > 0
+        ? dbHistory
+        : [
+            {
+              votes: c.totalVotosValidos,
+              percentValid: c.porcentajeVotosValidos,
+              capturedAt: new Date().toISOString(),
+              upstreamTsMs: totales.timestampMs,
+            },
+          ];
+    return { ...c, recentHistory };
+  });
 
   lastSnapshot = {
     timestamp: totales.timestamp,
