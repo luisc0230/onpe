@@ -90,14 +90,16 @@ function renderHtml({ timestamp, actasPercent, triggered, topCandidates }) {
 }
 
 /**
- * Resolves which subscribers should receive an email for a given set of triggered candidates.
- * - If a subscriber has explicit preferences, only matching DNIs trigger.
- * - If a subscriber has a NULL preference (default), track TOP 5 by totalVotosValidos.
+ * Resolves which subscribers should receive an email and what candidates to show them.
+ * Returns an array of { email, candidates } where candidates are the triggered ones they follow.
+ * - If a subscriber has explicit preferences, only matching DNIs are included.
+ * - If a subscriber has a NULL preference (default), include TOP 5 triggered candidates.
  */
 async function resolveRecipients({ triggered, allCandidatesSorted }) {
   if (!triggered.length) return [];
 
   const triggeredDnis = new Set(triggered.map((c) => c.dni));
+  const triggeredByDni = Object.fromEntries(triggered.map((c) => [c.dni, c]));
   const top5Dnis = new Set(allCandidatesSorted.slice(0, 5).map((c) => c.dni));
 
   const subs = await Subscriber.findAll({
@@ -110,14 +112,26 @@ async function resolveRecipients({ triggered, allCandidatesSorted }) {
     const hasDefault = prefs.length === 0 || prefs.some((p) => p.candidate_dni == null);
     const explicit = prefs.map((p) => p.candidate_dni).filter(Boolean);
 
-    const matchesDefault =
-      hasDefault && [...top5Dnis].some((dni) => triggeredDnis.has(dni));
-    const matchesExplicit = explicit.some((dni) => triggeredDnis.has(dni));
+    let relevantCandidates = [];
 
-    if (matchesDefault || matchesExplicit) recipients.push(s.email);
+    if (hasDefault) {
+      // Default: show triggered candidates that are in TOP 5
+      relevantCandidates = [...top5Dnis]
+        .filter((dni) => triggeredDnis.has(dni))
+        .map((dni) => triggeredByDni[dni]);
+    } else if (explicit.length > 0) {
+      // Custom: show only triggered candidates that user follows
+      relevantCandidates = explicit
+        .filter((dni) => triggeredDnis.has(dni))
+        .map((dni) => triggeredByDni[dni]);
+    }
+
+    if (relevantCandidates.length > 0) {
+      recipients.push({ email: s.email, candidates: relevantCandidates });
+    }
   }
 
-  return [...new Set(recipients)];
+  return recipients;
 }
 
 async function sendBatchedAlert({ timestamp, actasPercent, triggered, allCandidatesSorted }) {
@@ -127,36 +141,34 @@ async function sendBatchedAlert({ timestamp, actasPercent, triggered, allCandida
     return { chunks: 0, total: 0 };
   }
 
-  const html = renderHtml({
-    timestamp,
-    actasPercent,
-    triggered,
-    topCandidates: allCandidatesSorted,
-  });
-
-  const chunks = chunk(recipients, env.smtp.bccChunk);
-
   if (env.smtp.dryRun) {
     console.log(
-      `[MAIL][DRY_RUN] Would send ${chunks.length} email(s) to ${recipients.length} recipient(s).`
+      `[MAIL][DRY_RUN] Would send ${recipients.length} personalized email(s).`
     );
-    return { chunks: chunks.length, total: recipients.length, dryRun: true };
+    return { chunks: recipients.length, total: recipients.length, dryRun: true };
   }
 
   const t = getTransporter();
   const from = `"${env.smtp.fromName}" <${env.smtp.user}>`;
   const subject = 'Elecciones 2026 · Actualización de votos';
 
+  // Send personalized emails (each user sees only their tracked candidates)
   const results = await Promise.allSettled(
-    chunks.map((bcc) =>
-      t.sendMail({ from, to: env.smtp.user, bcc, subject, html })
-    )
+    recipients.map(({ email, candidates }) => {
+      const html = renderHtml({
+        timestamp,
+        actasPercent,
+        triggered: candidates, // Only show candidates this user follows
+        topCandidates: allCandidatesSorted,
+      });
+      return t.sendMail({ from, to: email, subject, html });
+    })
   );
 
   const failed = results.filter((r) => r.status === 'rejected');
-  if (failed.length) console.error(`[MAIL] ${failed.length} chunk(s) failed`, failed);
+  if (failed.length) console.error(`[MAIL] ${failed.length} email(s) failed`, failed);
 
-  return { chunks: chunks.length, total: recipients.length, failed: failed.length };
+  return { chunks: recipients.length, total: recipients.length, failed: failed.length };
 }
 
 async function verifyTransport() {
