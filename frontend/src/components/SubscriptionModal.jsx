@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { subscribe } from '../lib/api';
+import { subscribe, sendTestEmail } from '../lib/api';
 import CandidateImage from './CandidateImage';
 
 export default function SubscriptionModal({ open, onClose, candidates }) {
@@ -44,6 +44,11 @@ export default function SubscriptionModal({ open, onClose, candidates }) {
     try {
       const dnis = useDefault ? [] : Array.from(selected);
       const res = await subscribe(email.trim(), dnis);
+      // Fire-and-forget confirmation email so the user sees their inbox light up.
+      // Rate-limited server-side (max 3 per 10min per IP) so we don't abuse.
+      sendTestEmail(email.trim())
+        .then(() => setResult({ ...res, emailSent: true }))
+        .catch(() => setResult({ ...res, emailSent: false }));
       setResult(res);
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Error');
@@ -90,19 +95,33 @@ export default function SubscriptionModal({ open, onClose, candidates }) {
 
             {result ? (
               <div className="p-6 text-center">
-                <div className="text-2xl mb-2">✅</div>
-                <p className="font-semibold">¡Suscripción confirmada!</p>
-                <p className="text-sm text-slate-500 mt-1">
-                  Monitoreando:{' '}
-                  {Array.isArray(result.tracking)
-                    ? `${result.tracking.length} candidato(s)`
-                    : 'Top 5 por defecto'}
+                <div className="text-3xl mb-2">✅</div>
+                <p className="font-bold text-lg">¡Suscripción confirmada!</p>
+                <p className="text-sm text-slate-600 mt-2">
+                  Enviamos un correo de <strong>confirmación</strong> a <strong>{email}</strong>.
                 </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Si no lo ves en bandeja de entrada en 1–2 min, revisa Spam o Promociones.
+                </p>
+                <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-3 text-left">
+                  <div className="text-[11px] font-bold tracking-wider text-slate-500 mb-1">
+                    SIGUIENDO
+                  </div>
+                  <div className="text-sm">
+                    {Array.isArray(result.tracking)
+                      ? `${result.tracking.length} candidato${result.tracking.length === 1 ? '' : 's'} seleccionado${result.tracking.length === 1 ? '' : 's'}`
+                      : 'Top 5 automático (los 5 más votados en cada actualización)'}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-2">
+                    Recibirás correos <strong>solo cuando cambien los votos</strong> entre dos
+                    actualizaciones. No hay spam.
+                  </div>
+                </div>
                 <button
                   onClick={onClose}
-                  className="mt-5 rounded-xl bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800"
+                  className="mt-5 rounded-xl bg-slate-900 text-white px-5 py-2.5 text-sm font-semibold hover:bg-slate-800"
                 >
-                  Listo
+                  Entendido
                 </button>
               </div>
             ) : (

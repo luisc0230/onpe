@@ -46,5 +46,11 @@ export const subscribe = (email, candidateDnis) =>
   api.post('/subscription/subscribe', { email, candidateDnis }).then((r) => r.data);
 export const unsubscribe = (email) =>
   api.delete('/subscription/unsubscribe', { data: { email } }).then((r) => r.data);
+export const subscriptionStatus = (email) =>
+  api
+    .get('/subscription/status', { params: { email } })
+    .then((r) => r.data);
+export const sendTestEmail = (email) =>
+  api.post('/subscription/test-email', { email }).then((r) => r.data);
 
 export default api;
