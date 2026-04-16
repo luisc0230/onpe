@@ -71,9 +71,8 @@ async function runPollCycle() {
   // This prevents saving duplicate snapshots when ONPE updates timestamp but votes don't change.
   // OPTIMIZATION: Only store TOP 5 candidates to reduce DB size.
   if (sorted.length && totales.timestampMs && triggered.length > 0) {
-    const top5 = sorted.slice(0, 5); // Only store Top 5
     await CandidateSnapshot.bulkCreate(
-      top5.map((c) => ({
+      sorted.map((c) => ({
         dni: c.dni,
         name: c.name,
         party: c.party,
@@ -86,17 +85,15 @@ async function runPollCycle() {
         captured_at: new Date(),
       }))
     );
-    console.log(`[POLL] Snapshot stored (TOP ${top5.length}, ${triggered.length} changed) @ ${totales.timestampMs}`);
+    console.log(`[POLL] Snapshot stored (${sorted.length} candidates, ${triggered.length} changed) @ ${totales.timestampMs}`);
   } else if (sorted.length && totales.timestampMs) {
     console.log(`[POLL] No changes detected, skipping snapshot @ ${totales.timestampMs}`);
   }
 
   // Attach last 3 cycles of history to each candidate for inline mini-trend UI.
-  // Only Top 5 have DB history, but all candidates get at least current snapshot.
   const historyByDni = await loadRecentHistoryByDni(3);
   const candidatesWithHistory = sorted.map((c) => {
     const dbHistory = historyByDni[c.dni] || [];
-    // If no DB history (not in Top 5), create a single-point history from current data
     const recentHistory =
       dbHistory.length > 0
         ? dbHistory
